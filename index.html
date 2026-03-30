@@ -1,0 +1,171 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Death Custom - Stock Biker</title>
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;700&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --bg-dark: #000000;
+            --pink-neon: #ff1aff;
+            --pink-core: #ffccff;
+            --accent: var(--pink-neon);
+            --card-bg: rgba(15, 17, 21, 0.7);
+            --glass-border: 1px solid rgba(255, 26, 255, 0.2);
+        }
+
+        body {
+            background-color: var(--bg-dark);
+            color: white;
+            font-family: 'Outfit', sans-serif;
+            margin: 0; padding: 20px;
+            background-image: radial-gradient(circle at 50% -20%, rgba(255, 26, 255, 0.15) 0%, transparent 70%);
+        }
+
+        h1 { 
+            text-align: center;
+            background: linear-gradient(to right, var(--pink-core), var(--pink-neon)); 
+            -webkit-background-clip: text; -webkit-text-fill-color: transparent;
+            font-size: 2.2rem; text-shadow: 0 0 15px rgba(255, 26, 255, 0.5);
+        }
+
+        .search {
+            width: 100%; padding: 15px; background: var(--card-bg); border: var(--glass-border);
+            border-radius: 15px; color: white; margin-bottom: 20px; box-sizing: border-box;
+        }
+
+        .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 15px; }
+
+        .item-card {
+            background: var(--card-bg); border: var(--glass-border); border-radius: 16px;
+            padding: 20px; display: flex; justify-content: space-between; align-items: center;
+            transition: 0.3s;
+        }
+        .item-card:hover { border-color: var(--pink-neon); box-shadow: 0 0 15px rgba(255, 26, 255, 0.2); }
+
+        .item-info strong { display: block; font-size: 1.1rem; text-transform: uppercase; }
+        .item-info span { color: var(--pink-neon); font-weight: bold; font-size: 1.5rem; }
+
+        .controls { display: flex; gap: 10px; }
+        .btn-qty {
+            width: 40px; height: 40px; border-radius: 10px; border: 1px solid var(--pink-neon);
+            background: rgba(255, 26, 255, 0.05); color: white; font-size: 1.5rem; cursor: pointer;
+        }
+
+        /* Bouton Flottant Ajouter */
+        .fab {
+            position: fixed; bottom: 25px; right: 25px; width: 60px; height: 60px;
+            background: var(--pink-neon); color: black; border: none; border-radius: 50%;
+            font-size: 2rem; font-weight: bold; cursor: pointer; box-shadow: 0 0 20px var(--pink-neon);
+        }
+
+        /* Modal */
+        .modal {
+            display: none; position: fixed; top:0; left:0; width:100%; height:100%;
+            background: rgba(0,0,0,0.9); justify-content: center; align-items: center; z-index: 1000;
+        }
+        .modal-content {
+            background: #0a0a0a; padding: 30px; border: 2px solid var(--pink-neon);
+            border-radius: 20px; width: 90%; max-width: 400px;
+        }
+        .modal-input {
+            width: 100%; padding: 12px; margin: 10px 0; background: #000;
+            border: var(--glass-border); color: white; border-radius: 8px; box-sizing: border-box;
+        }
+    </style>
+</head>
+<body>
+
+    <h1>STOCK DEATH CUSTOM</h1>
+
+    <input type="text" class="search" placeholder="Rechercher un objet..." onkeyup="filter(this.value)">
+
+    <div id="loading" style="text-align:center; color:var(--pink-neon);">CHARGEMENT DU STOCK...</div>
+    <div id="inventory" class="grid"></div>
+
+    <button class="fab" onclick="document.getElementById('modalAdd').style.display='flex'">+</button>
+
+    <div id="modalAdd" class="modal">
+        <div class="modal-content">
+            <h2 style="color:var(--pink-neon); margin-top:0;">Nouvel Objet</h2>
+            <input type="text" id="newName" class="modal-input" placeholder="Nom de l'objet">
+            <input type="number" id="newQty" class="modal-input" placeholder="Stock de départ" value="0">
+            <button class="btn-qty" style="width:100%; margin-top:10px; font-size:1rem;" onclick="addNewItem()">VALIDER L'AJOUT</button>
+            <button class="btn-qty" style="width:100%; margin-top:10px; font-size:1rem; border-color:#444;" onclick="document.getElementById('modalAdd').style.display='none'">ANNULER</button>
+        </div>
+    </div>
+
+<script>
+    // COLLE TON URL CI-DESSOUS
+    const API_URL = "https://script.google.com/macros/s/AKfycbwUYm3FMq_kJjcCQQRelkGNJI4AMZB5R6_xbMX3Ff2LOVejXYMUJsLBJlYWESUQoKbXsQ/exec"; // <--- REMPLACE PAR TON URL GOOGLE SCRIPT
+    let items = [];
+
+    async function load() {
+        try {
+            const resp = await fetch(API_URL);
+            items = await resp.json();
+            render();
+            document.getElementById('loading').style.display = 'none';
+        } catch (e) {
+            document.getElementById('loading').innerText = "ERREUR DE CONNEXION AU SHEETS";
+        }
+    }
+
+    function render() {
+        const container = document.getElementById('inventory');
+        container.innerHTML = '';
+        items.forEach(item => {
+            container.innerHTML += `
+                <div class="item-card" data-name="${item.nom.toLowerCase()}">
+                    <div class="item-info">
+                        <strong>${item.nom}</strong>
+                        <span id="qty-${item.id}">${item.stock}</span>
+                    </div>
+                    <div class="controls">
+                        <button class="btn-qty" onclick="update(${item.id}, -1)">−</button>
+                        <button class="btn-qty" onclick="update(${item.id}, 1)">+</button>
+                    </div>
+                </div>`;
+        });
+    }
+
+    async function update(id, delta) {
+        const item = items.find(i => i.id === id);
+        const newStock = item.stock + delta;
+        if (newStock < 0) return;
+
+        item.stock = newStock;
+        document.getElementById(`qty-${id}`).innerText = newStock;
+
+        fetch(API_URL, {
+            method: 'POST',
+            body: JSON.stringify({ id: id, nouveauStock: newStock, action: "update" })
+        });
+    }
+
+    async function addNewItem() {
+        const nom = document.getElementById('newName').value;
+        const stock = document.getElementById('newQty').value;
+        if(!nom) return;
+
+        document.getElementById('modalAdd').style.display = 'none';
+        document.getElementById('loading').style.display = 'block';
+
+        await fetch(API_URL, {
+            method: 'POST',
+            body: JSON.stringify({ nom: nom, stock: stock, action: "add" })
+        });
+        location.reload();
+    }
+
+    function filter(val) {
+        document.querySelectorAll('.item-card').forEach(card => {
+            card.style.display = card.dataset.name.includes(val.toLowerCase()) ? 'flex' : 'none';
+        });
+    }
+
+    window.onload = load;
+</script>
+</body>
+</html>
